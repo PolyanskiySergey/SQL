@@ -1,0 +1,203 @@
+--Создаем таблицу Тест
+
+CREATE TABLE Test(
+	id SERIAL PRIMARY KEY,
+	CODE_1 VARCHAR(64),
+	CODE_2 VARCHAR(64)
+);
+
+--Заполняем Тест значениями
+
+DO
+$$
+BEGIN
+FOR i IN 1..1000000 LOOP
+INSERT INTO Test(code_1,code_2) VALUES(md5(random()::text),md5(random()::text));
+END LOOP;
+END
+$$ language plpgsql;
+
+--Анализируем запрос
+
+EXPLAIN ANALYZE SELECT * FROM student;
+
+"Seq Scan on student  (cost=0.00..6.17 rows=217 width=204) (actual time=0.347..0.659 rows=188 loops=1)"
+"Planning Time: 2.034 ms"
+"Execution Time: 0.694 ms"
+
+--Анализируем запрос
+
+EXPLAIN ANALYZE INSERT INTO test (code_1, code_2) VALUES
+(md5(random()::text),md5(random()::text));
+
+"Insert on test  (cost=0.00..0.04 rows=1 width=296) (actual time=0.056..0.056 rows=0 loops=1)"
+"  ->  Result  (cost=0.00..0.04 rows=1 width=296) (actual time=0.016..0.016 rows=1 loops=1)"
+"Planning Time: 0.027 ms"
+"Execution Time: 0.089 ms"
+
+--Анализируем запрос до индексирования
+
+EXPLAIN ANALYZE SELECT * FROM public.test
+ORDER BY code_1 ASC
+
+"Gather Merge  (cost=73496.01..170725.10 rows=833334 width=70) (actual time=1472.359..2817.955 rows=1000001 loops=1)"
+"  Workers Planned: 2"
+"  Workers Launched: 2"
+"  ->  Sort  (cost=72495.98..73537.65 rows=416667 width=70) (actual time=1453.363..1611.434 rows=333334 loops=3)"
+"        Sort Key: code_1"
+"        Sort Method: external merge  Disk: 25984kB"
+"        Worker 0:  Sort Method: external merge  Disk: 25992kB"
+"        Worker 1:  Sort Method: external merge  Disk: 26512kB"
+"        ->  Parallel Seq Scan on test  (cost=0.00..16512.67 rows=416667 width=70) (actual time=0.007..111.844 rows=333334 loops=3)"
+"Planning Time: 0.045 ms"
+"Execution Time: 2847.814 ms"
+
+--Создаем индекс
+
+CREATE INDEX code_1_index ON test (code_1)
+
+--Анализируем запрос после индексирования
+
+"Index Scan using code_1_index on test  (cost=0.42..93224.27 rows=1000001 width=70) (actual time=1.106..966.248 rows=1000001 loops=1)"
+"Planning Time: 0.172 ms"
+"Execution Time: 1005.290 ms"
+
+"Insert on test  (cost=0.00..0.04 rows=1 width=296) (actual time=8.420..8.420 rows=0 loops=1)"
+"  ->  Result  (cost=0.00..0.04 rows=1 width=296) (actual time=0.089..0.090 rows=1 loops=1)"
+"Planning Time: 0.022 ms"
+"Execution Time: 8.445 ms"
+
+--Анализируем запрос
+
+EXPLAIN ANALYZE SELECT * FROM Test
+WHERE code_1 LIKE 'a%'
+ORDER BY code_1 ASC
+
+"Gather Merge  (cost=20400.80..26293.35 rows=50504 width=70) (actual time=182.677..242.562 rows=62423 loops=1)"
+"  Workers Planned: 2"
+"  Workers Launched: 2"
+"  ->  Sort  (cost=19400.78..19463.91 rows=25252 width=70) (actual time=160.797..163.790 rows=20808 loops=3)"
+"        Sort Key: code_1"
+"        Sort Method: quicksort  Memory: 4088kB"
+"        Worker 0:  Sort Method: quicksort  Memory: 3310kB"
+"        Worker 1:  Sort Method: quicksort  Memory: 3137kB"
+"        ->  Parallel Seq Scan on test  (cost=0.00..17554.34 rows=25252 width=70) (actual time=0.012..74.194 rows=20808 loops=3)"
+"              Filter: ((code_1)::text ~~ 'a%'::text)"
+"              Rows Removed by Filter: 312526"
+"Planning Time: 1.317 ms"
+"Execution Time: 243.901 ms"
+
+--Анализируем запрос до индексирования
+
+EXPLAIN ANALYZE 
+SELECT * FROM student
+WHERE students_group_number = 'ИВТ-21В'
+
+"Seq Scan on student  (cost=0.00..6.35 rows=7 width=204) (actual time=0.011..0.024 rows=7 loops=1)"
+"  Filter: ((students_group_number)::text = 'ИВТ-21В'::text)"
+"  Rows Removed by Filter: 181"
+"Planning Time: 0.050 ms"
+"Execution Time: 0.033 ms"
+
+--Создаем индекс
+
+CREATE INDEX students_group_index ON student (students_group_number)
+
+--Анализируем запрос после индексирования
+
+"Seq Scan on student  (cost=0.00..6.35 rows=7 width=204) (actual time=0.007..0.019 rows=7 loops=1)"
+"  Filter: ((students_group_number)::text = 'ИВТ-21В'::text)"
+"  Rows Removed by Filter: 181"
+"Planning Time: 0.127 ms"
+"Execution Time: 0.028 ms"
+
+--Создаем транзакцию на изменение и просмотр оценок
+--Начало транзакции
+
+BEGIN;
+
+SELECT *
+FROM field_comprehension
+WHERE student_id = 910001 AND mark < 5;
+
+910001	"c4dd1f23-a616-d847-13ea-65583c1f7664"	3
+910001	"c20d3742-063a-7823-d24d-c0d62365cd90"	3
+910001	"901d0b03-013c-c986-4cd4-98098179a633"	4
+910001	"5ce393ac-2aaa-51e6-c13f-78f678a9a01a"	3
+
+--Изменение внутри транзакции
+
+BEGIN;
+UPDATE field_comprehension
+SET mark = mark + 1
+WHERE student_id = 910001 AND mark < 5;
+
+--Запрос на просмотр
+
+SELECT *
+FROM field_comprehension
+WHERE student_id = 910001 --AND mark < 5
+;
+
+910001	"fdbd356c-9471-56cd-c8bc-321ca29fd636"	5
+910001	"ba8b1416-c850-dd82-9e31-c4337054e89c"	5
+910001	"44e95075-a149-3e26-06ce-ac04ad214d64"	5
+910001	"c4dd1f23-a616-d847-13ea-65583c1f7664"	4
+910001	"c20d3742-063a-7823-d24d-c0d62365cd90"	4
+910001	"901d0b03-013c-c986-4cd4-98098179a633"	5
+910001	"5ce393ac-2aaa-51e6-c13f-78f678a9a01a"	4
+
+--Запрос на просмотрб, другой сеанс, другой пользователь
+SELECT *
+FROM field_comprehension
+WHERE student_id = 910001 --AND mark < 5
+;
+
+910001	"fdbd356c-9471-56cd-c8bc-321ca29fd636"	5
+910001	"c4dd1f23-a616-d847-13ea-65583c1f7664"	3
+910001	"c20d3742-063a-7823-d24d-c0d62365cd90"	3
+910001	"ba8b1416-c850-dd82-9e31-c4337054e89c"	5
+910001	"901d0b03-013c-c986-4cd4-98098179a633"	4
+910001	"5ce393ac-2aaa-51e6-c13f-78f678a9a01a"	3
+910001	"44e95075-a149-3e26-06ce-ac04ad214d64"	5
+
+--Откат
+
+ROLLBACK;
+
+--Запрос на просмотр
+
+SELECT *
+FROM field_comprehension
+WHERE student_id = 910001 --AND mark < 5
+;
+
+910001	"fdbd356c-9471-56cd-c8bc-321ca29fd636"	5
+910001	"c4dd1f23-a616-d847-13ea-65583c1f7664"	3
+910001	"c20d3742-063a-7823-d24d-c0d62365cd90"	3
+910001	"ba8b1416-c850-dd82-9e31-c4337054e89c"	5
+910001	"901d0b03-013c-c986-4cd4-98098179a633"	4
+910001	"5ce393ac-2aaa-51e6-c13f-78f678a9a01a"	3
+910001	"44e95075-a149-3e26-06ce-ac04ad214d64"	5
+
+-- Представление просмотр контрактов преподавателей
+
+CREATE VIEW contract AS
+SELECT professor.surname, professor.name, professor.patronymic, employment.contract_number
+FROM professor
+INNER JOIN employment ON
+employment.professor_id = professor.professor_id
+ORDER BY surname;
+
+SELECT * FROM contract
+
+--Представление просмотр логин и пароля студентов 
+
+CREATE VIEW login_info AS
+SELECT student.surname, student.name, student.patronymic, users.login, users.password
+FROM student
+INNER JOIN users ON
+users.login = student.student_id
+ORDER BY surname;
+
+SELECT * FROM login_info123

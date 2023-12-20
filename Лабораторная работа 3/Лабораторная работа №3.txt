@@ -1,0 +1,83 @@
+Лабораторная работа №3
+
+Вариант №3
+
+Задание №1
+Имена студентов не совпадающие с именами преподавателей
+
+SELECT name FROM student
+EXCEPT
+SELECT name FROM professor
+ORDER BY name;
+
+Задание №2
+Вывести группу,её институт/кафедру, руководителя
+
+SELECT students_group.students_group_number, structural_unit.full_title, structural_unit.head_of_the_unit
+FROM students_group
+INNER JOIN structural_unit ON
+structural_unit.structural_unit_id = students_group.structural_unit_number
+WHERE students_group_number = 'ИВТ-21В';
+
+Задание №3
+Вывести весь список студентов и оценки у группы ИБ-21
+
+SELECT student.students_group_number, student.surname, student.name, student.patronymic, field.field_name, field_comprehension.mark
+FROM student
+INNER JOIN field_comprehension ON
+field_comprehension.student_id = student.student_id
+INNER JOIN field ON
+field.field_id = field_comprehension.field
+WHERE students_group_number = 'ИБ-21';
+
+Задание №4
+Вывести номера студ. билетов и их срок действия у группы ИБ-21
+
+SELECT student.students_group_number, student.student_id, student_id.expiration_date
+FROM student
+INNER JOIN student_id ON
+student_id.student_id = student.student_id
+WHERE students_group_number = 'ИБ-21'
+ORDER BY student_id;
+
+Задание №5
+Запрос с содержанием команды:
+
+--1. INNER JOIN (ФИО преподавателя и соответствующий номер контракта)
+
+SELECT professor.surname, professor.name, professor.patronymic, employment.contract_number
+FROM professor
+INNER JOIN employment ON
+employment.professor_id = professor.professor_id
+ORDER BY surname;
+
+--2. INNER JOIN (ФИО студента и соответствующий логин и пароль)
+
+SELECT student.surname, student.name, student.patronymic, users.login, users.password
+FROM student
+INNER JOIN users ON
+users.login = student.student_id
+ORDER BY surname;
+
+--3. RIGHT OUTER JOIN (Соотношение групп и структурых подразделений, структурные подразделения без групп)
+
+SELECT students_group.students_group_number, structural_unit.full_title
+FROM students_group
+RIGHT OUTER JOIN structural_unit ON
+structural_unit.structural_unit_id = students_group.structural_unit_number;
+
+--4. UNION (Список студентов и преподавателей, журнал входа/выхода, журнал ознакомления с техникой безопасности)
+
+SELECT surname, name, patronymic
+FROM student
+UNION
+SELECT surname, name, patronymic
+FROM professor;
+
+--5. INTERSECT (Студенты и преподаватели однофамильцы, поиск магистров работающих преподавателями)
+
+SELECT surname
+FROM professor
+INTERSECT
+SELECT surname
+FROM student;

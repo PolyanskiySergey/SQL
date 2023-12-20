@@ -1,0 +1,60 @@
+Лабораторная работа №2
+
+Вариант №3
+
+Задание №2
+
+SELECT name AS "Имя", surname AS "Фамилия", birthday AS "Дата рождения", age(CURRENT_DATE,birthday) AS "Возраст(точный)",((CURRENT_DATE-birthday)/365)::int AS "Возраст"
+FROM student 
+WHERE ((CURRENT_DATE-birthday)/365)::int<20;
+
+Задание №3
+
+SELECT 
+*
+--count(*)
+FROM public.students_group
+WHERE students_group_number LIKE 'ИВТ%';
+
+Задание №4
+
+SELECT
+*
+--count(*) 
+FROM public.students_group
+WHERE enrolment_status = 'Очная' AND structural_unit_number<>3;
+
+Задание №5
+
+1.
+SELECT name AS "Имя", surname AS "Фамилия", birthday AS "Дата рождения", students_group_number AS "Группа"
+FROM student
+WHERE students_group_number ='ИВТ-21В';
+
+2.
+SELECT surname AS "Фамилия", name AS "Имя", birthday AS "Дата рождения", students_group_number AS "Группа"
+FROM student
+WHERE students_group_number LIKE'ИВТ-4%'
+ORDER BY surname;
+
+3.
+SELECT DISTINCT student_id AS "ID студента", AVG(mark) AS "Средний балл"
+FROM public.field_comprehension
+GROUP BY student_id 
+ORDER BY student_id; 
+
+4.
+SELECT students_group_number AS "Группа", count(*) AS "Число студентов"
+FROM student
+GROUP BY students_group_number
+HAVING count(*) < 20;
+
+5.
+SELECT professor.сurrent_position AS "Должность", count(*) AS "Число сотрудников", AVG (salary::numeric)::numeric(10,2)
+FROM professor
+WHERE professor.сurrent_position NOT LIKE 'методист' 
+GROUP BY professor.сurrent_position
+HAVING count(*) < 20
+ORDER BY AVG;
+
+

@@ -1,0 +1,70 @@
+--Лабораторная работа №4
+
+--Вариант №3
+
+--Задание №1
+--Добавить возможность прикрепить несколько преподавателей к одной дисциплине
+
+CREATE TABLE substitute_professors(
+professor_id INTEGER PRIMARY KEY,
+field_id UUID PRIMARY KEY,
+FOREIGN KEY (professor_id) 
+	REFERENCES professor (professor_id),
+FOREIGN KEY (field_id) 
+	REFERENCES field (field_id)
+);
+
+--Задание №2
+--Добавить в таблицу Professor поле, содержащее номер телефона
+
+ALTER TABLE professor
+ADD COLUMN phone_number VARCHAR(17) NULL UNIQUE
+	CONSTRAINT phone_number_cheak
+	CHECK (phone_number ~* '^[8|+7][(][0-9]{3}+[)][0-9]{3}+[-][0-9]{2}+[-][0-9]{2}+$')
+;
+
+--Задание №3
+--Добавить в таблицу Students_group поле, содержащее информацию о старосте
+
+ALTER TABLE students_group
+ADD COLUMN headman INTEGER UNIQUE,
+ADD CONSTRAINT Student_Headman 
+	FOREIGN KEY(headman) 
+	REFERENCES Student(student_id)
+;
+
+--Задание №4
+--Добавить несколько таблиц, связанных со студенческими объединениями
+
+CREATE TABLE Director(
+	name VARCHAR(30) NOT NULL,
+	surname VARCHAR(30) NOT NULL,
+	director_id INTEGER NOT NULL,
+	birth_date DATE NOT NULL,
+	contacts VARCHAR(30),
+	PRIMARY KEY(director_id),
+	CONSTRAINT contact_director
+		CHECK (contacts ~* '^vk.com/+[A-Za-z0-9._+%-]+$')
+);
+
+CREATE TABLE Student_organisation(
+	organization_name VARCHAR(50) NOT NULL,
+	director_id INTEGER NOT NULL,
+	activity_field VARCHAR(25) NOT NULL,
+	foundation_date DATE NOT NULL,
+	contacts VARCHAR(30),
+	PRIMARY KEY(organization_name),
+	CONSTRAINT director_key
+		FOREIGN KEY(director_id)
+			REFERENCES Director(director_id)
+			ON DELETE CASCADE,
+	CONSTRAINT contact_organisation
+		CHECK (contacts ~* '^vk.com/+[A-Za-z0-9._+%-]+$')
+);
+
+ALTER TABLE student
+ADD COLUMN organisation_name VARCHAR(50) NULL,
+ADD CONSTRAINT Student_join_organisation 
+	FOREIGN KEY(organisation_name) 
+	REFERENCES Student_organisation(organization_name)
+;
